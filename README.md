@@ -3,3 +3,11 @@
 計算方法についての解説については同書を参照してください。
 
 The uploaded Fortran code is a coded version of the calculation method published in "Augmented version of celestial position calculation" (Chijin Shokan, 1998, 4th edition, written by Ko Nagasawa). Please refer to the same book for the explanation of the calculation method.
+Sorry, Japanese Only
+
+## Compile
+gfrotran <filename>.f90 pcc_library.f90
+
+## Execute
+./a.out (Linux)
+a.exe (Windows)
