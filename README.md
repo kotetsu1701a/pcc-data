@@ -6,7 +6,7 @@ The uploaded Fortran code is a coded version of the calculation method published
 Sorry, Japanese Only
 
 ## Compile
-gfrotran [filename].f90 pcc_library.f90
+gfortran [filename].f90 pcc_library.f90
 
 ## Execute
 ./a.out (Linux)<br>
