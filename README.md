@@ -9,5 +9,5 @@ Sorry, Japanese Only
 gfrotran [filename].f90 pcc_library.f90
 
 ## Execute
-./a.out (Linux)\\
+./a.out (Linux)  
 a.exe (Windows)
