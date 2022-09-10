@@ -29,13 +29,12 @@ program pcc_proper_motion
     hour = int(dt / 10000.0d0)
     minute = mod(int(dt / 100.0d0), 100)
     second = mod(dt, 100.0d0)
-
     call GetJulianDay(year, month, day, hour, minute, second, julian)
     
     call BesselianYear(julian, t)
-    t = t * 100.0d0
-    call ProperMotion(t, RA, DC, RA_PROPER_MOTION, DC_PROPER_MOTION, AP, RV, star_position)    
 
+    t = t * 100.0d0
+    call ProperMotion(t, RA, DC, RA_PROPER_MOTION, DC_PROPER_MOTION, AP, RV, star_position)
     l1 = star_position(1)
     m1 = star_position(2)
     n1 = star_position(3)

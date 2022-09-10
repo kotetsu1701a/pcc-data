@@ -283,22 +283,22 @@ subroutine GetJulianDay(year, month, day, hour, minute, second, julian)
 ! 本ルーチンで使用している計算式は、紀元前や1582年10月15日より
 ! 前のユリウス日の計算には使えないので注意が必要である。
     implicit none
-    
+
     double precision, intent(in) :: year, month, day, hour, minute, second
     double precision, intent(out) :: julian
     double precision :: mm, yy
     
     mm = month
     yy = year
-    
+
     if (int(mm) < 3) then
         mm = mm + 12.0d0
         yy = yy - 1.0d0
     end if
-    
+
     julian = int(yy * 365.25d0) + int(yy / 400.0d0) - int(yy / 100.0d0) + int(30.59d0 * (mm - 2.0d0)) + day + 1721088.5d0
     
-    julian = julian + (hour / 24.0d0 + minute / 1440.0d0 + second / 86400.0d0)
+    julian = julian + (hour / 24.0d0 + minute / 1440.0d0 + (second)/ 86400.0d0)
     julian = julian - 0.375d0
     
     return
@@ -576,9 +576,9 @@ subroutine Precession(t, ra0, dc0, star_position)
 !          ra0: 天体の赤経
 !          dc0: 天体の赤緯
 ! 戻り値:  歳差運動によって変化した天体位置の方向余弦を返す
-!          star_position[0]: l2
-!          star_position[1]: m2
-!          star_position[2]: n3
+!          star_position(/0]: l2
+!          star_position(/1]: m2
+!          star_position(/2]: n3
 
     implicit none
 
@@ -841,3 +841,280 @@ subroutine Nutation1950(dt, t, ra0, dc0, star_position)
         return
     end function Mla
 end subroutine Nutation1950
+
+subroutine SunEclipticLongitude(t, sun_ecliptic)
+! 太陽の黄経計算
+! 海上保安庁水路部(現　海洋情報部)の略算式による計算
+!
+! 引　数: ユリウス世紀数
+!        t: 1ユリウス世紀数(JD - 2451545.0) / 36525.0)
+! 戻り値: 太陽の黄経を度の単位で返す。
+!        ecl(1): 太陽の黄経
+!        ecl(2): 地心距離
+!
+! 計算精度について:
+! 係数の桁数の関係で黄経小数点以下3桁、地心距離は小数点以下4桁までにとどめる。
+
+    implicit none
+
+    double precision, parameter :: PI = 3.141592653589793d0
+    double precision, parameter :: RAD = 180.0d0 / PI
+
+    double precision, intent(in) :: t
+    double precision, intent(out) :: sun_ecliptic(2)
+
+    double precision :: xpl(18, 3), rd(8, 3)
+    double precision :: s, c, r, ecl
+    integer :: i
+
+    ! 黄経
+    xpl( 1, 1:3) = (/ 1.9147d0, 35999.05d0, 267.52d0/)
+    xpl( 2, 1:3) = (/ 0.0200d0, 71998.1d0,  265.10d0/)
+    xpl( 3, 1:3) = (/ 0.0020d0, 32964.0d0,  158.00d0/)
+    xpl( 4, 1:3) = (/ 0.0018d0,    19.0d0,  159.00d0/)
+    xpl( 5, 1:3) = (/ 0.0018d0,445267.0d0,  208.00d0/)
+    xpl( 6, 1:3) = (/ 0.0015d0, 45038.0d0,  254.00d0/)
+    xpl( 7, 1:3) = (/ 0.0013d0, 22519.0d0,  352.00d0/)
+    xpl( 8, 1:3) = (/ 0.0007d0, 65929.0d0,   45.00d0/)
+    xpl( 9, 1:3) = (/ 0.0007d0,  3035.0d0,  110.00d0/)
+    xpl(10, 1:3) = (/ 0.0007d0,  9038.0d0,   64.00d0/)
+    xpl(11, 1:3) = (/ 0.0006d0, 33718.0d0,  316.00d0/)
+    xpl(12, 1:3) = (/ 0.0005d0,   155.0d0,  118.00d0/)
+    xpl(13, 1:3) = (/ 0.0005d0,  2281.0d0,  221.00d0/)
+    xpl(14, 1:3) = (/ 0.0004d0, 29930.0d0,   48.00d0/)
+    xpl(15, 1:3) = (/ 0.0004d0, 31557.0d0,  161.00d0/)
+    xpl(16, 1:3) = (/-0.0048d0, 35999.00d0, 267.52d0/)
+    xpl(17, 1:3) = (/ 0.0048d0,  1934.0d0,  145.00d0/)
+    xpl(18, 1:3) = (/-0.0004d0, 72002.0d0,  111.00d0/)
+
+    ! 地心距離
+    rd(1, 1:3) = (/ 0.016706d0,  35999.05d0, 177.53d0/)
+    rd(2, 1:3) = (/ 0.000139d0,  71998.00d0, 175.00d0/)
+    rd(3, 1:3) = (/ 0.000031d0, 445267.00d0, 298.00d0/)
+    rd(4, 1:3) = (/ 0.000016d0,  32964.00d0,  68.00d0/)
+    rd(5, 1:3) = (/ 0.000016d0,  45038.00d0, 164.00d0/)
+    rd(6, 1:3) = (/ 0.000005d0,  32519.00d0, 233.00d0/)
+    rd(7, 1:3) = (/ 0.000005d0,  33718.00d0, 226.00d0/)
+    rd(8, 1:3) = (/-0.000042d0,  35999.00d0, 178.00d0/)
+
+    s = 36000.7695d0 * t + 280.4602d0
+    do i = 1, 15
+        s = s + xpl(i, 1) * cos((xpl(i, 2) * t + xpl(i, 3)) / RAD)
+    end do
+
+    c = 0.0d0
+    do i = 16, 18
+        c = c + xpl(i, 1) * t * cos((xpl(i, 2) * t + xpl(i, 3)) / RAD)
+    end do
+
+    r = 1.00014d0
+    do i = 1, 7
+        r = r + rd(i, 1) * cos((rd(i, 2) * t + rd(i, 3)) / RAD)
+    end do
+    r = r + rd(8, 1) * t * cos((xpl(8, 2) * t + xpl(8, 3)) / RAD)
+
+    ecl = s + c + 0.00569d0
+    sun_ecliptic(1) = Mla(ecl)
+    sun_ecliptic(2) = r
+
+    return
+    contains
+    double precision function Mla(x)
+    ! x からnの整数倍を差し引いた値を返す
+
+        implicit none
+        
+        double precision, intent(in) :: x
+        double precision :: val
+
+        val = 360.0d0 * (x / 360.0d0 - int(x / 360.d0))
+        if (val < 0) then
+            val = val + 360.0d0
+        end if
+
+        Mla = val
+
+        return
+    end function Mla
+end subroutine SunEclipticLongitude
+
+subroutine EquatorialToEcliptic(t, ra0, dc0, era, edc)
+! 赤道座標から黄道座標への変換
+! 引　数: 時刻引数および赤道座標
+!        t : 1ユリウス世紀数(JD - 2451545.0) / 36525.0)
+!        ora: 赤経
+!        odc: 赤緯
+! 戻り値: 黄経・黄緯を角度で返す
+!        ecliptic(1): 黄経
+!        ecliptic(2): 黄緯
+
+    implicit none
+
+    double precision, parameter :: PI = 3.141592653589793d0
+    double precision, parameter :: RAD = 180.0d0 / PI
+
+    double precision ,intent(in):: t, ra0, dc0
+    double precision, intent(out) :: era, edc
+
+    double precision :: ra, dc
+    double precision :: ep
+    double precision :: l, m, n, u, v, w
+    double precision :: ma(3, 3), mb(3, 1), mc(3, 1)
+
+    ! 平均黄道傾斜角の計算
+    call MeanObliquityEcliptic(t, ep)
+    ep = ep / RAD
+
+    ! 赤経・赤緯から方向余弦を計算する
+    ra = ra0 / RAD
+    dc = dc0 / RAD
+    l = cos(dc) * cos(ra)
+    m = cos(dc) * sin(ra)
+    n = sin(dc)
+
+    ! 黄経・黄緯の計算
+    ma(1, 1:3) = (/1.0d0,    0.0d0,   0.0d0/)
+    ma(2, 1:3) = (/0.0d0,  cos(ep), sin(ep)/)
+    ma(3, 1:3) = (/0.0d0, -sin(ep), cos(ep)/)
+    mb(1, 1) = l
+    mb(2, 1) = m
+    mb(3, 1) = n
+    mc = matmul(ma, mb)
+    u = mc(1, 1)
+    v = mc(2, 1)
+    w = mc(3, 1)
+
+    call Quadrant(v, u, era)
+    era = era * RAD
+    edc = asin(sin(w)) * RAD
+
+    return
+end subroutine EquatorialToEcliptic
+
+subroutine AnnualParallax(t, ra0, dc0, pai0, star_position)
+! 年周視差の計算
+! 天体の位置計算 増補版 P.66 - P.72
+! 引　数:  ユリウス世紀
+!          t:  2000年1月0日正午からの経過日数をユリウス世紀数で表したもの
+!          ra0: 恒星の赤経
+!          dc0: 恒星の赤緯
+!          pai: 恒星の年周視差
+! 戻り値:  年周視差によって変化した赤経および赤緯の方向余弦を返す
+!          star_position(1): l4
+!          star_position(2): m4
+!          star_position(3): n4
+
+    implicit none
+
+    double precision, parameter :: PI = 3.141592653589793d0
+    double precision, parameter :: RAD = 180.0d0 / PI
+
+    double precision, intent(in) :: t
+    double precision, intent(in) :: ra0, dc0, pai0
+    double precision, intent(out) :: star_position(3)
+
+    double precision :: ra, dc, l, m, n
+    double precision :: l4, m4, n4
+    double precision :: ls, ms, ns
+    double precision :: mecl, secl
+    double precision :: pai
+    double precision :: sun_ecliptic(2)
+
+
+    ! 平均黄道傾斜角
+    call MeanObliquityEcliptic(t, mecl)
+    mecl = mecl / RAD
+
+    ! 太陽の黄経の方向余弦
+    call SunEclipticLongitude(t, sun_ecliptic)
+    secl = sun_ecliptic(1) / RAD
+
+    ls = cos(secl)
+    ms = sin(secl) * cos(mecl)
+    ns = sin(secl) * sin(mecl)
+
+    ! 赤経・赤緯から方向余弦を計算する
+    ra = ra0 / RAD
+    dc = dc0 / RAD
+    l = cos(dc) * cos(ra)
+    m = cos(dc) * sin(ra)
+    n = sin(dc)
+
+    ! 年周視差をラジアン値に換算
+    pai = (pai0 / 3600.0d0) / RAD
+
+    ! 年周視差を考慮した恒星位置の計算
+    l4 = l + pai * ((1 - l**2) * ls - l * m * ms - l * n * ns)
+    m4 = m + pai * (-l * m * ls + (1 - m**2) * ms - m * n * ns)
+    n4 = n + pai * (-l * n * ls - m * n * ms + (1 - n**2)* ns)
+
+    star_position(1) = l4
+    star_position(2) = m4
+    star_position(3) = n4
+
+    return
+end subroutine AnnualParallax
+
+subroutine AnnualAberration(t, ra0, dc0, star_position)
+! 年周光行差の計算
+! 天体の位置計算 増補版 P.74 - P.82
+! 引　数:  ユリウス世紀
+!          t:  2000年1月0日正午からの経過日数をユリウス世紀数で表したもの
+!          ra0: 恒星の赤経
+!          dc0: 恒星の赤緯
+! 戻り値:  年周光行差によって変化した赤経および赤緯の方向余弦を返す
+!          star_position(1): l5
+!          star_position(2): m5
+!          star_position(3): n5
+
+    implicit none
+
+    double precision, parameter :: PI = 3.141592653589793d0
+    double precision, parameter :: RAD = 180.0d0 / PI
+    double precision, parameter :: KP = 20.49552d0
+
+    double precision, intent(in) :: t
+    double precision, intent(in) :: ra0, dc0
+    double precision, intent(out) :: star_position(3)
+
+    double precision :: ra, dc, l, m, n
+    double precision :: l5, m5, n5
+    double precision :: ls, ms, ns
+    double precision :: mecl, secl
+    double precision :: k
+    double precision :: sun_ecliptic(2)
+
+
+    ! 平均黄道傾斜角
+    call MeanObliquityEcliptic(t, mecl)
+    mecl = mecl / RAD
+
+    ! 太陽の黄経の方向余弦
+    call SunEclipticLongitude(t, sun_ecliptic)
+    secl = sun_ecliptic(1) / RAD
+
+    ls = sin(secl)
+    ms = cos(secl) * cos(mecl)
+    ns = cos(secl) * sin(mecl)
+
+    ! 赤経・赤緯から方向余弦を計算する
+    ra = ra0 / RAD
+    dc = dc0 / RAD
+    l = cos(dc) * cos(ra)
+    m = cos(dc) * sin(ra)
+    n = sin(dc)
+
+    ! 光行差定数をラジアン値に換算
+    k = (KP / 3600.0d0) / RAD
+
+    ! 年周視差を考慮した恒星位置の計算
+    l5 = l + k * ((1 - l**2) * ls + l * m * ms + l * n * ns)
+    m5 = m + k * (-l * m * ls - (1 - m**2) * ms + m * n * ns)
+    n5 = n + k * (-l * n * ls + m * n * ms - (1 - n**2)* ns)
+
+    star_position(1) = l5
+    star_position(2) = m5
+    star_position(3) = n5
+
+    return
+end subroutine AnnualAberration

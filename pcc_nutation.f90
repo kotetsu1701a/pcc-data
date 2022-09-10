@@ -26,15 +26,16 @@ program pcc_nutation
     hour = int(dt / 10000.0d0)
     minute = mod(int(dt / 100.0d0), 100)
     second = mod(dt, 100.0d0)
-
     call GetJulianDay(year, month, day, hour, minute, second, julian)
+    
     d = julian - 2415020.0d0
     t = d / 36525d0
-    call Nutation1950(d, t, RA, DC, star_position)    
-
+    call Nutation1950(d, t, RA, DC, star_position)
     l3 = star_position(1)
     m3 = star_position(2)
     n3 = star_position(3)
+
+    print *, l3, m3, n3
 
     call Quadrant(m3, l3, ra1)
     ra1 = ra1 * RAD
