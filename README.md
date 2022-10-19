@@ -9,7 +9,7 @@ Sorry, Japanese only.
 ## Compile
 gfortran -c pcc_li.f90<br>
 gfortran -c <ファイル名>.f90<br>
-gfortran pcc_lib.f90 <ファイル名>.f90
+gfortran pcc_lib.o <ファイル名>.o
 
 ## Execute
 ./a.out (Linux)<br>
